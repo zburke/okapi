@@ -120,13 +120,15 @@ public class OkapiPerformance {
       + "    \"version\" : \"1.0\"," + LS
       + "    \"handlers\" : [ {" + LS
       + "      \"methods\" : [ \"POST\" ]," + LS
-      + "      \"pathPattern\" : \"/authn/login\"" + LS
+      + "      \"pathPattern\" : \"/authn/login\"," + LS
+      + "      \"permissionsRequired\" : [ ]" + LS
       + "    } ]" + LS
       + "  } ]," + LS
+      + "  \"requires\" : [ ]," + LS
       + "  \"filters\" : [ {" + LS
       + "    \"methods\" : [ \"*\" ]," + LS
-      + "    \"path\" : \"/s\"," + LS
-      + "    \"level\" : \"10\"," + LS
+      + "    \"pathPattern\" : \"/s\"," + LS
+      + "    \"phase\" : \"auth\"," + LS
       + "    \"type\" : \"request-response\"" + LS
       + "  } ]" + LS
       + "}";
@@ -163,12 +165,14 @@ public class OkapiPerformance {
     final String doc = "{" + LS
       + "  \"id\" : \"sample-module-1.0.0\"," + LS
       + "  \"name\" : \"sample module\"," + LS
+      + "  \"requires\" : [ ]," + LS
       + "  \"provides\" : [ {" + LS
       + "    \"id\" : \"sample\"," + LS
       + "    \"version\" : \"1.0\"," + LS
       + "    \"handlers\" : [ {" + LS
       + "      \"methods\" : [ \"GET\", \"POST\" ]," + LS
-      + "      \"path\" : \"/testb\"" + LS
+      + "      \"pathPattern\" : \"/testb\"," + LS
+      + "      \"permissionsRequired\" : [ ]" + LS
       + "    } ]" + LS
       + "  } ]" + LS
       + "}";

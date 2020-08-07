@@ -1,23 +1,5 @@
 package org.folio.okapi.managers;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Future;
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpClientResponse;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.json.Json;
-import io.vertx.core.json.JsonObject;
-import io.vertx.core.streams.ReadStream;
-import io.vertx.core.streams.WriteStream;
-import io.vertx.ext.web.RoutingContext;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -29,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+
 import org.apache.logging.log4j.Logger;
 import org.folio.okapi.bean.DeploymentDescriptor;
 import org.folio.okapi.bean.ModuleDescriptor;
@@ -48,6 +31,26 @@ import org.folio.okapi.common.XOkapiHeaders;
 import org.folio.okapi.util.CorsHelper;
 import org.folio.okapi.util.DropwizardHelper;
 import org.folio.okapi.util.ProxyContext;
+import org.folio.okapi.util.TokenCache;
+
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.http.HttpServerRequest;
+import io.vertx.core.http.HttpServerResponse;
+import io.vertx.core.json.Json;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.streams.ReadStream;
+import io.vertx.core.streams.WriteStream;
+import io.vertx.ext.web.RoutingContext;
 
 
 /**
@@ -74,7 +77,9 @@ public class ProxyService {
   private final int waitMs;
   private static final String REDIRECTQUERY = "redirect-query"; // See redirectProxy below
   private final Messages messages = Messages.getInstance();
-
+  
+  private TokenCache tokenCache = new TokenCache(); 
+  
   /**
    * Construct Proxy service.
    * @param vertx Vert.x handle
@@ -190,6 +195,8 @@ public class ProxyService {
     final String id = req.getHeader(XOkapiHeaders.MODULE_ID);
     pc.debug("getMods: Matching " + req.method() + " " + req.uri());
 
+    boolean skipAuth = false;
+    
     for (ModuleDescriptor md : enabledModules) {
       pc.debug("getMods:  looking at " + md.getId());
       List<RoutingEntry> rr = null;
@@ -202,7 +209,16 @@ public class ProxyService {
         for (RoutingEntry re : rr) {
           if (match(re, req)) {
             ModuleInstance mi = new ModuleInstance(md, re, req.uri(), req.method(), true);
-            mi.setAuthToken(req.headers().get(XOkapiHeaders.TOKEN));
+            
+            //CAM
+            String token = tokenCache.get(req.method().name(), req.path(), Arrays.toString(re.getModulePermissions()));
+            if(token != null) {
+              pc.debug("CAM - using cached token " + token + " for "  + req.method() + " " + req.path() + " " + Arrays.toString(re.getModulePermissions()));
+              mi.setAuthToken(token);
+              skipAuth = true;
+            } else {             
+              mi.setAuthToken(req.headers().get(XOkapiHeaders.TOKEN));
+            }
             mods.add(mi);
             pc.debug("getMods:   Added " + md.getId() + " "
                 + re.getPathPattern() + " " + re.getPath() + " "
@@ -215,6 +231,13 @@ public class ProxyService {
       for (RoutingEntry re : rr) {
         if (match(re, req)) {
           ModuleInstance mi = new ModuleInstance(md, re, req.uri(), req.method(), false);
+          
+          //CAM
+          if (XOkapiHeaders.FILTER_AUTH.equals(mi.getRoutingEntry().getPhase()) && skipAuth) {
+            pc.debug("CAM - skipping auth, have cached token.");
+            continue;
+          } 
+          
           mi.setAuthToken(req.headers().get(XOkapiHeaders.TOKEN));
           mods.add(mi);
           if (!resolveRedirects(pc, mods, re, enabledModules, "", req.uri())) {
@@ -222,7 +245,7 @@ public class ProxyService {
           }
           pc.debug("getMods:   Added " + md.getId() + " "
               + re.getPathPattern() + " " + re.getPath() + " "
-              + re.getPhase() + "/" + re.getLevel());
+              + re.getPhase() + "/" + re.getLevel());          
         }
       }
     }
@@ -239,6 +262,7 @@ public class ProxyService {
           + "'" + inst.getRoutingEntry().getPhase() + "' "
           + "'" + inst.getRoutingEntry().getLevel() + "' "
       );
+     
       if (inst.isHandler()) {
         found = true;
       }
@@ -427,6 +451,11 @@ public class ProxyService {
           String tok = jo.getString(id);
           mi.setAuthToken(tok);
           pc.debug("authResponse: token for " + id + ": " + tok);
+          HttpServerRequest req = pc.getCtx().request();
+          
+          //CAM
+          pc.debug("CAM - caching token " + tok + " for "  + req.method() + " " + req.path() + " " + Arrays.toString(mi.getRoutingEntry().getModulePermissions()));
+          tokenCache.put(req.method().name(), req.path(), Arrays.toString(mi.getRoutingEntry().getModulePermissions()), tok);
         } else if (jo.containsKey("_")) {
           String tok = jo.getString("_");
           mi.setAuthToken(tok);
