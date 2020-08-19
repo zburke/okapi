@@ -232,13 +232,6 @@ public class ProxyService {
       for (RoutingEntry re : rr) {
         if (match(re, req)) {
           ModuleInstance mi = new ModuleInstance(md, re, req.uri(), req.method(), false);
-          
-          //CAM
-          if (XOkapiHeaders.FILTER_AUTH.equals(mi.getRoutingEntry().getPhase()) && skipAuth) {
-            pc.debug("CAM - skipping auth, have cached token.");
-            continue;
-          } 
-          
           mi.setAuthToken(req.headers().get(XOkapiHeaders.TOKEN));
           mods.add(mi);
           if (!resolveRedirects(pc, mods, re, enabledModules, "", req.uri())) {
@@ -250,10 +243,16 @@ public class ProxyService {
         }
       }
     }
+    
     Comparator<ModuleInstance> cmp = (ModuleInstance a, ModuleInstance b)
         -> a.getRoutingEntry().getPhaseLevel().compareTo(b.getRoutingEntry().getPhaseLevel());
     mods.sort(cmp);
 
+    if (skipAuth) {
+      pc.debug("CAM - skipping auth, have cached token.");
+      mods.remove(0);
+      pc.debug("CAM - pipeline: " + Arrays.toString(mods.toArray()));      
+    }
     // Check that our pipeline has a real module in it, not just filters,
     // so that we can return a proper 404 for requests that only hit auth
     pc.debug("Checking filters for " + req.uri());
@@ -454,13 +453,15 @@ public class ProxyService {
           pc.debug("authResponse: token for " + id + ": " + tok);
           HttpServerRequest req = pc.getCtx().request();
           
-          //CAM
-          pc.debug(
-              "CAM - caching token " + tok + " for " + req.method() 
-                 + " " + req.path() + " " + Arrays.toString(mi.getRoutingEntry()
-                .getModulePermissions()));
-          tokenCache.put(req.method().name(), req.path(), 
-              Arrays.toString(mi.getRoutingEntry().getModulePermissions()), tok);
+          if (req.getHeader(XOkapiHeaders.REQUEST_ID).contains(";")) {
+            //CAM
+            pc.debug(
+                "CAM - caching token " + tok + " for " + req.method() 
+                   + " " + req.path() + " " + Arrays.toString(mi.getRoutingEntry()
+                  .getModulePermissions()));
+            tokenCache.put(req.method().name(), req.path(), 
+                Arrays.toString(mi.getRoutingEntry().getModulePermissions()), tok);
+          }
         } else if (jo.containsKey("_")) {
           String tok = jo.getString("_");
           mi.setAuthToken(tok);
@@ -591,6 +592,8 @@ public class ProxyService {
         headers.set(XOkapiHeaders.REQUEST_IP, ctx.request().remoteAddress().host());
         headers.set(XOkapiHeaders.REQUEST_TIMESTAMP, "" + System.currentTimeMillis());
         headers.set(XOkapiHeaders.REQUEST_METHOD, ctx.request().rawMethod());
+        //CAM
+        //headers.set(XOkapiHeaders.USER_ID, ctx.request().getHeader(XOkapiHeaders.USER_ID));
 
         resolveUrls(l.iterator(), res -> {
           if (res.failed()) {
