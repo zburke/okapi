@@ -49,6 +49,7 @@ import org.folio.okapi.util.CorsHelper;
 import org.folio.okapi.util.DropwizardHelper;
 import org.folio.okapi.util.ProxyContext;
 import org.folio.okapi.util.TokenCache;
+import org.folio.okapi.util.TokenCache.CacheEntry;
 
 /**
  * Okapi's proxy service. Routes incoming requests to relevant modules, as
@@ -208,13 +209,24 @@ public class ProxyService {
             ModuleInstance mi = new ModuleInstance(md, re, req.uri(), req.method(), true);
             
             // CAM
-            String token = tokenCache.get(req.method()
-                .name(), req.path(), Arrays.toString(re.getModulePermissions()));
-            if (token != null) {
-              pc.debug("CAM - using cached token " + token 
-                  + " for " + req.method() + " " + req.path() + " "
-                  + Arrays.toString(re.getModulePermissions()));
-              mi.setAuthToken(token);
+            
+            CacheEntry cached = tokenCache.get(
+                req.method().name(),
+                re.getPathPattern(),
+                Arrays.toString(re.getModulePermissions()),
+                req.getHeader(XOkapiHeaders.USER_ID));
+            
+            if (cached != null) {
+              pc.debug("CAM - using cached token " + cached.token + " for "
+                  + req.method() + " "
+                  + req.path() + " "
+                  + Arrays.toString(re.getModulePermissions()) + " "
+                  + cached.xokapiUserid + " "
+                  + cached.xokapiPermissions);
+              mi.setAuthToken(cached.token);
+              mi.setxOkapiUserId(cached.xokapiUserid);
+              mi.setxOkapiPermissions(cached.xokapiPermissions);
+              
               skipAuth = true;
             } else {
               mi.setAuthToken(req.headers()
@@ -251,7 +263,6 @@ public class ProxyService {
     if (skipAuth) {
       pc.debug("CAM - skipping auth, have cached token.");
       mods.remove(0);
-      pc.debug("CAM - pipeline: " + Arrays.toString(mods.toArray()));      
     }
     // Check that our pipeline has a real module in it, not just filters,
     // so that we can return a proper 404 for requests that only hit auth
@@ -453,15 +464,23 @@ public class ProxyService {
           pc.debug("authResponse: token for " + id + ": " + tok);
           HttpServerRequest req = pc.getCtx().request();
           
-          if (req.getHeader(XOkapiHeaders.REQUEST_ID).contains(";")) {
-            //CAM
-            pc.debug(
-                "CAM - caching token " + tok + " for " + req.method() 
-                   + " " + req.path() + " " + Arrays.toString(mi.getRoutingEntry()
-                  .getModulePermissions()));
-            tokenCache.put(req.method().name(), req.path(), 
-                Arrays.toString(mi.getRoutingEntry().getModulePermissions()), tok);
-          }
+          //if (req.getHeader(XOkapiHeaders.REQUEST_ID).contains(";")) {
+          //CAM
+          pc.debug(
+              "CAM - caching token " + tok + " for "
+                  + req.method() + " "
+                  + req.path() + " "
+                  + Arrays.toString(mi.getRoutingEntry().getModulePermissions()) + " "
+                  + res.getHeader(XOkapiHeaders.USER_ID) + " " 
+                  + res.getHeader(XOkapiHeaders.PERMISSIONS));
+          
+          tokenCache.put(req.method().name(), 
+              mi.getRoutingEntry().getPathPattern(), 
+              Arrays.toString(mi.getRoutingEntry().getModulePermissions()),
+              res.getHeader(XOkapiHeaders.USER_ID),
+              res.getHeader(XOkapiHeaders.PERMISSIONS),
+              tok);            
+          //}
         } else if (jo.containsKey("_")) {
           String tok = jo.getString("_");
           mi.setAuthToken(tok);
@@ -592,8 +611,6 @@ public class ProxyService {
         headers.set(XOkapiHeaders.REQUEST_IP, ctx.request().remoteAddress().host());
         headers.set(XOkapiHeaders.REQUEST_TIMESTAMP, "" + System.currentTimeMillis());
         headers.set(XOkapiHeaders.REQUEST_METHOD, ctx.request().rawMethod());
-        //CAM
-        //headers.set(XOkapiHeaders.USER_ID, ctx.request().getHeader(XOkapiHeaders.USER_ID));
 
         resolveUrls(l.iterator(), res -> {
           if (res.failed()) {
@@ -986,7 +1003,27 @@ public class ProxyService {
       if (token != null && !token.isEmpty()) {
         ctx.request().headers().add(XOkapiHeaders.TOKEN, token);
       }
-
+      
+      //CAM
+      
+      String userId = mi.getxOkapiUserId();
+      if (userId != null) {
+        ctx.request().headers().remove(XOkapiHeaders.USER_ID);
+        ctx.request().headers().add(XOkapiHeaders.USER_ID, userId);
+        pc.debug("CAM - using X-Okapi-User-Id: " + userId);
+      }
+      
+      String perms = mi.getxOkapiPermissions();
+      if (perms != null) {
+        ctx.request()
+            .headers()
+            .remove(XOkapiHeaders.PERMISSIONS);
+        ctx.request()
+            .headers()
+            .add(XOkapiHeaders.PERMISSIONS, perms);
+        pc.debug("CAM - using X-Okapi-Permissions: " + perms);
+      }
+      
       // Pass headers for filters
       passFilterHeaders(ctx, pc, mi);
 
