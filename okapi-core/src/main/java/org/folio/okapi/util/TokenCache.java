@@ -13,24 +13,23 @@ public class TokenCache {
    * Cache an entry.
    * @param method HTTP method
    * @param path path pattern 
-   * @param modulePerms module permissions 
    * @param userId X-Okapi-User-Id header to cache
    * @param xokapiPerms X-Okapi-Permissions header to cache
    * @param token access token to cache
    */
-  public void put(String method, String path, String modulePerms, String userId,
+  public void put(String method, String path, String userId,
       String xokapiPerms, String token) {
     long now = System.currentTimeMillis();
     CacheEntry entry = new CacheEntry(token, userId, xokapiPerms, now + TTL);
-    cache.put(genKey(method, path, modulePerms, userId), entry);
+    cache.put(genKey(method, path, userId, token), entry);
   }
   
-  public CacheEntry get(String method, String path, String modulePerms, String userId) {
-    return cache.get(genKey(method, path, modulePerms, userId));
+  public CacheEntry get(String method, String path, String token, String userId) {
+    return cache.get(genKey(method, path, token, userId));
   }
   
-  private String genKey(String method, String path, String modulePerms, String userId) {
-    return method + "|" + path + "|" + modulePerms + "|" + userId;
+  private String genKey(String method, String path, String token, String userId) {
+    return method + "|" + path + "|" + token + "|" + userId;
   }
   
   public static class CacheEntry {

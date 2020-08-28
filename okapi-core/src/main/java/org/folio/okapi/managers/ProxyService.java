@@ -213,7 +213,7 @@ public class ProxyService {
             CacheEntry cached = tokenCache.get(
                 req.method().name(),
                 re.getPathPattern(),
-                Arrays.toString(re.getModulePermissions()),
+                req.headers().get(XOkapiHeaders.TOKEN),
                 req.getHeader(XOkapiHeaders.USER_ID));
             
             if (cached != null) {
@@ -470,13 +470,11 @@ public class ProxyService {
               "CAM - caching token " + tok + " for "
                   + req.method() + " "
                   + req.path() + " "
-                  + Arrays.toString(mi.getRoutingEntry().getModulePermissions()) + " "
                   + res.getHeader(XOkapiHeaders.USER_ID) + " " 
                   + res.getHeader(XOkapiHeaders.PERMISSIONS));
           
           tokenCache.put(req.method().name(), 
               mi.getRoutingEntry().getPathPattern(), 
-              Arrays.toString(mi.getRoutingEntry().getModulePermissions()),
               res.getHeader(XOkapiHeaders.USER_ID),
               res.getHeader(XOkapiHeaders.PERMISSIONS),
               tok);            
