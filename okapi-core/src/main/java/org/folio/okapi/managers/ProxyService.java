@@ -483,21 +483,6 @@ public class ProxyService {
           String tok = jo.getString("_");
           mi.setAuthToken(tok);
           pc.debug("authResponse: Default (_) token for " + id + ": " + tok);
-          
-          HttpServerRequest req = pc.getCtx().request();
-
-          pc.debug(
-              "CAM - caching token " + tok + " for "
-                  + req.method() + " "
-                  + req.path() + " "
-                  + res.getHeader(XOkapiHeaders.USER_ID) + " " 
-                  + res.getHeader(XOkapiHeaders.PERMISSIONS));
-          
-          tokenCache.put(req.method().name(), 
-              req.path(), 
-              res.getHeader(XOkapiHeaders.USER_ID),
-              res.getHeader(XOkapiHeaders.PERMISSIONS),
-              tok);
         }
       }
     }
