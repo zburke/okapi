@@ -21,7 +21,9 @@ public class TokenCache {
       String xokapiPerms, String token) {
     long now = System.currentTimeMillis();
     CacheEntry entry = new CacheEntry(token, userId, xokapiPerms, now + TTL);
-    cache.put(genKey(method, path, token, userId), entry);
+    String key = genKey(method, path, token, userId);
+    System.out.println("CAM - Saving: " + key + " " + token);
+    cache.put(key, entry);
   }
   
   /**
@@ -34,11 +36,9 @@ public class TokenCache {
    */
   public CacheEntry get(String method, String path, String token, String userId) {
     String key = genKey(method, path, token, userId);
-    System.out.println("CAM - Looking for: " + key);
-    for (String k : cache.keySet()) {
-      System.out.println("CAM - Cached: " + k);
-    }
-    return cache.get(genKey(method, path, token, userId));
+    CacheEntry ret = cache.get(genKey(method, path, token, userId));
+    System.out.println("CAM - Found: " + key + " " + (ret == null ? "null" : ret.token));
+    return ret;
   }
   
   private String genKey(String method, String path, String token, String userId) {
