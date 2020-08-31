@@ -212,7 +212,7 @@ public class ProxyService {
             
             CacheEntry cached = tokenCache.get(
                 req.method().name(),
-                re.getPathPattern(),
+                req.path(),
                 req.headers().get(XOkapiHeaders.TOKEN),
                 req.getHeader(XOkapiHeaders.USER_ID));
             
@@ -220,7 +220,7 @@ public class ProxyService {
               pc.debug("CAM - using cached token " + cached.token + " for "
                   + req.method() + " "
                   + req.path() + " "
-                  + Arrays.toString(re.getModulePermissions()) + " "
+                  + req.headers().get(XOkapiHeaders.TOKEN) + " "
                   + cached.xokapiUserid + " "
                   + cached.xokapiPermissions);
               mi.setAuthToken(cached.token);
@@ -474,15 +474,30 @@ public class ProxyService {
                   + res.getHeader(XOkapiHeaders.PERMISSIONS));
           
           tokenCache.put(req.method().name(), 
-              mi.getRoutingEntry().getPathPattern(), 
+              req.path(), 
               res.getHeader(XOkapiHeaders.USER_ID),
               res.getHeader(XOkapiHeaders.PERMISSIONS),
-              tok);            
+              tok);
           //}
         } else if (jo.containsKey("_")) {
           String tok = jo.getString("_");
           mi.setAuthToken(tok);
           pc.debug("authResponse: Default (_) token for " + id + ": " + tok);
+          
+          HttpServerRequest req = pc.getCtx().request();
+
+          pc.debug(
+              "CAM - caching token " + tok + " for "
+                  + req.method() + " "
+                  + req.path() + " "
+                  + res.getHeader(XOkapiHeaders.USER_ID) + " " 
+                  + res.getHeader(XOkapiHeaders.PERMISSIONS));
+          
+          tokenCache.put(req.method().name(), 
+              req.path(), 
+              res.getHeader(XOkapiHeaders.USER_ID),
+              res.getHeader(XOkapiHeaders.PERMISSIONS),
+              tok);
         }
       }
     }

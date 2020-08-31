@@ -21,10 +21,23 @@ public class TokenCache {
       String xokapiPerms, String token) {
     long now = System.currentTimeMillis();
     CacheEntry entry = new CacheEntry(token, userId, xokapiPerms, now + TTL);
-    cache.put(genKey(method, path, userId, token), entry);
+    cache.put(genKey(method, path, token, userId), entry);
   }
   
+  /**
+   * Get a cached entry.
+   * @param method HTTP method
+   * @param path path pattern
+   * @param token X-Okapi-Token header
+   * @param userId X-Okapi-User-Id header 
+   * @return cache entry or null
+   */
   public CacheEntry get(String method, String path, String token, String userId) {
+    String key = genKey(method, path, token, userId);
+    System.out.println("CAM - Looking for: " + key);
+    for (String k : cache.keySet()) {
+      System.out.println("CAM - Cached: " + k);
+    }
     return cache.get(genKey(method, path, token, userId));
   }
   
