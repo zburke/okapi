@@ -208,21 +208,16 @@ public class ProxyService {
           if (match(re, req)) {
             ModuleInstance mi = new ModuleInstance(md, re, req.uri(), req.method(), true);
             
-            // CAM
+            String pathPattern = re.getPathPattern();
             
+            // CAM            
             CacheEntry cached = tokenCache.get(
                 req.method().name(),
-                req.path(),
+                pathPattern == null ? req.path() : pathPattern,
                 req.headers().get(XOkapiHeaders.TOKEN),
                 req.getHeader(XOkapiHeaders.USER_ID));
             
             if (cached != null) {
-              pc.debug("CAM - using cached token " + cached.token + " for "
-                  + req.method() + " "
-                  + req.path() + " "
-                  + req.headers().get(XOkapiHeaders.TOKEN) + " "
-                  + cached.xokapiUserid + " "
-                  + cached.xokapiPermissions);
               mi.setAuthToken(cached.token);
               mi.setxOkapiUserId(cached.xokapiUserid);
               mi.setxOkapiPermissions(cached.xokapiPermissions);
@@ -454,6 +449,7 @@ public class ProxyService {
    */
   private void authResponse(HttpClientResponse res, ProxyContext pc) {
     String modTok = res.headers().get(XOkapiHeaders.MODULE_TOKENS);
+    HttpServerRequest req = pc.getCtx().request();
     if (modTok != null && !modTok.isEmpty()) {
       JsonObject jo = new JsonObject(modTok);
       for (ModuleInstance mi : pc.getModList()) {
@@ -461,45 +457,21 @@ public class ProxyService {
         if (jo.containsKey(id)) {
           String tok = jo.getString(id);
           mi.setAuthToken(tok);
-          pc.debug("authResponse: token for " + id + ": " + tok);
-          HttpServerRequest req = pc.getCtx().request();
+          pc.debug("authResponse: token for " + id + ": " + tok);          
           
-          //if (req.getHeader(XOkapiHeaders.REQUEST_ID).contains(";")) {
+          String pathPattern = mi.getRoutingEntry().getPathPattern();
+          
           //CAM
-          pc.debug(
-              "CAM - caching token " + tok + " for "
-                  + req.method() + " "
-                  + req.path() + " "
-                  + res.getHeader(XOkapiHeaders.USER_ID) + " " 
-                  + res.getHeader(XOkapiHeaders.PERMISSIONS));
-          
           tokenCache.put(req.method().name(), 
-              req.path(), 
+              pathPattern == null ? req.path() : pathPattern, 
               res.getHeader(XOkapiHeaders.USER_ID),
               res.getHeader(XOkapiHeaders.PERMISSIONS),
               req.getHeader(XOkapiHeaders.TOKEN),
               tok);
-          //}
         } else if (jo.containsKey("_")) {
           String tok = jo.getString("_");
           mi.setAuthToken(tok);
           pc.debug("authResponse: Default (_) token for " + id + ": " + tok);
-          
-          //HttpServerRequest req = pc.getCtx().request();
-          
-          //CAM
-          //pc.debug(
-          //    "CAM - caching token " + tok + " for "
-          //        + req.method() + " "
-          //        + req.path() + " "
-          //        + res.getHeader(XOkapiHeaders.USER_ID) + " " 
-          //        + res.getHeader(XOkapiHeaders.PERMISSIONS));
-          //
-          //tokenCache.put(req.method().name(), 
-          //    req.path(), 
-          //    res.getHeader(XOkapiHeaders.USER_ID),
-          //    res.getHeader(XOkapiHeaders.PERMISSIONS),
-          //    tok);
         }
       }
     }

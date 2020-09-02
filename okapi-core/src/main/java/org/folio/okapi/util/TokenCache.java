@@ -2,12 +2,15 @@ package org.folio.okapi.util;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.logging.log4j.Logger;
+import org.folio.okapi.common.OkapiLogger;
 
 public class TokenCache {
 
-  public static final long TTL = 10 * 60 * 1000L;
+  public static final long TTL = 3 * 60 * 1000L;
   
   private Map<String, CacheEntry> cache = new HashMap<>();
+  private static final Logger logger = OkapiLogger.get(TokenCache.class);
   
   /**
    * Cache an entry.
@@ -22,7 +25,7 @@ public class TokenCache {
     long now = System.currentTimeMillis();
     CacheEntry entry = new CacheEntry(token, userId, xokapiPerms, now + TTL);
     String key = genKey(method, path, keyToken, userId);
-    System.out.println("CAM - Saving: " + key + " " + token);
+    logger.info("Caching: " + key + " " + token);
     cache.put(key, entry);
   }
   
@@ -37,8 +40,17 @@ public class TokenCache {
   public CacheEntry get(String method, String path, String token, String userId) {
     String key = genKey(method, path, token, userId);
     CacheEntry ret = cache.get(genKey(method, path, token, userId));
-    System.out.println("CAM - Found: " + key + " " + (ret == null ? "null" : ret.token));
-    return ret;
+    if (ret == null) {
+      logger.info("Cache Miss: {}", key);
+      return ret;
+    } else if (ret.isExpired()) {
+      logger.info("Cache Hit (Expired): {}", key);
+      cache.remove(key);
+      return null;
+    } else {
+      logger.info("Cache Hit: {} -> {}", key, ret.token);
+      return ret;
+    }
   }
   
   private String genKey(String method, String path, String token, String userId) {
