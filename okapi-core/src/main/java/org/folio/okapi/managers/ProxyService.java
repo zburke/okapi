@@ -466,6 +466,28 @@ public class ProxyService {
           
           //if (req.getHeader(XOkapiHeaders.REQUEST_ID).contains(";")) {
           //CAM
+          pc.debug(
+              "CAM - caching token " + tok + " for "
+                  + req.method() + " "
+                  + req.path() + " "
+                  + res.getHeader(XOkapiHeaders.USER_ID) + " " 
+                  + res.getHeader(XOkapiHeaders.PERMISSIONS));
+          
+          tokenCache.put(req.method().name(), 
+              req.path(), 
+              res.getHeader(XOkapiHeaders.USER_ID),
+              res.getHeader(XOkapiHeaders.PERMISSIONS),
+              req.getHeader(XOkapiHeaders.TOKEN),
+              tok);
+          //}
+        } else if (jo.containsKey("_")) {
+          String tok = jo.getString("_");
+          mi.setAuthToken(tok);
+          pc.debug("authResponse: Default (_) token for " + id + ": " + tok);
+          
+          //HttpServerRequest req = pc.getCtx().request();
+          
+          //CAM
           //pc.debug(
           //    "CAM - caching token " + tok + " for "
           //        + req.method() + " "
@@ -478,27 +500,6 @@ public class ProxyService {
           //    res.getHeader(XOkapiHeaders.USER_ID),
           //    res.getHeader(XOkapiHeaders.PERMISSIONS),
           //    tok);
-          //}
-        } else if (jo.containsKey("_")) {
-          String tok = jo.getString("_");
-          mi.setAuthToken(tok);
-          pc.debug("authResponse: Default (_) token for " + id + ": " + tok);
-          
-          HttpServerRequest req = pc.getCtx().request();
-          
-          //CAM
-          pc.debug(
-              "CAM - caching token " + tok + " for "
-                  + req.method() + " "
-                  + req.path() + " "
-                  + res.getHeader(XOkapiHeaders.USER_ID) + " " 
-                  + res.getHeader(XOkapiHeaders.PERMISSIONS));
-          
-          tokenCache.put(req.method().name(), 
-              req.path(), 
-              res.getHeader(XOkapiHeaders.USER_ID),
-              res.getHeader(XOkapiHeaders.PERMISSIONS),
-              tok);
         }
       }
     }

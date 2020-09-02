@@ -18,10 +18,10 @@ public class TokenCache {
    * @param token access token to cache
    */
   public void put(String method, String path, String userId,
-      String xokapiPerms, String token) {
+      String xokapiPerms, String keyToken, String token) {
     long now = System.currentTimeMillis();
     CacheEntry entry = new CacheEntry(token, userId, xokapiPerms, now + TTL);
-    String key = genKey(method, path, token, userId);
+    String key = genKey(method, path, keyToken, userId);
     System.out.println("CAM - Saving: " + key + " " + token);
     cache.put(key, entry);
   }
