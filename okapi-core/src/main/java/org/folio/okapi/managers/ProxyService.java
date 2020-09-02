@@ -454,12 +454,12 @@ public class ProxyService {
       JsonObject jo = new JsonObject(modTok);
       for (ModuleInstance mi : pc.getModList()) {
         String id = mi.getModuleDescriptor().getId();
+        String pathPattern = mi.getRoutingEntry().getPathPattern();
+
         if (jo.containsKey(id)) {
           String tok = jo.getString(id);
           mi.setAuthToken(tok);
           pc.debug("authResponse: token for " + id + ": " + tok);          
-          
-          String pathPattern = mi.getRoutingEntry().getPathPattern();
           
           //CAM
           tokenCache.put(req.method().name(), 
@@ -472,6 +472,13 @@ public class ProxyService {
           String tok = jo.getString("_");
           mi.setAuthToken(tok);
           pc.debug("authResponse: Default (_) token for " + id + ": " + tok);
+          
+          tokenCache.put(req.method().name(), 
+              pathPattern == null ? req.path() : pathPattern, 
+              res.getHeader(XOkapiHeaders.USER_ID),
+              res.getHeader(XOkapiHeaders.PERMISSIONS),
+              req.getHeader(XOkapiHeaders.TOKEN),
+              tok);
         }
       }
     }
