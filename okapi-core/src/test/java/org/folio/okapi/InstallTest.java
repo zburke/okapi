@@ -292,6 +292,20 @@ public class InstallTest {
         + "  } ]" + LS
         + "}", job.encodePrettily());
 
+    c = api.createRestAssured3();
+    r = c.given()
+        .header("Content-Type", "application/json")
+        .body("")
+        .post("/_/proxy/tenants/" + okapiTenant + "/upgrade?async=true&deploy=true")
+        .then().statusCode(201)
+        .body(equalTo("[ ]"))
+        .extract().response();
+    Assert.assertTrue(
+        "raml: " + c.getLastReport().toString(),
+        c.getLastReport().isEmpty());
+    final String locationInstallJob1 = r.getHeader("Location");
+
+
     // known installId but unknown tenantId
     c = api.createRestAssured3();
     c.given()
