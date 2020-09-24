@@ -769,7 +769,9 @@ public class InternalModule {
         .compose(res -> {
           String jsonResponse = Json.encodePrettily(res);
           if (options.getAsync()) {
-            return location(pc, installId.toString(), null, jsonResponse);
+            // using same location as install
+            String baseUri = pc.getCtx().request().uri().replace("/upgrade", "/install");
+            return location(pc, installId.toString(), baseUri, jsonResponse);
           } else {
             return Future.succeededFuture(jsonResponse);
           }

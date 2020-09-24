@@ -278,7 +278,7 @@ public class InstallTest {
     Assert.assertTrue(
         "raml: " + c.getLastReport().toString(),
         c.getLastReport().isEmpty());
-    final String locationInstallJob = r.getHeader("Location");
+    String locationInstallJob = r.getHeader("Location");
 
     String suffix = locationInstallJob.substring(locationInstallJob.indexOf("/_/"));
 
@@ -303,8 +303,13 @@ public class InstallTest {
     Assert.assertTrue(
         "raml: " + c.getLastReport().toString(),
         c.getLastReport().isEmpty());
-    final String locationInstallJob1 = r.getHeader("Location");
-
+    locationInstallJob = r.getHeader("Location");
+    suffix = locationInstallJob.substring(locationInstallJob.indexOf("/_/"));
+    job = pollCompleteStrip(context, suffix);
+    context.assertEquals("{" + LS
+        + "  \"complete\" : true," + LS
+        + "  \"modules\" : [ ]" + LS
+        + "}", job.encodePrettily());
 
     // known installId but unknown tenantId
     c = api.createRestAssured3();
